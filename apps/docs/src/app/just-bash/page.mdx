@@ -152,7 +152,7 @@ The `files` option populates an in-memory filesystem. Keys are absolute paths, v
 const shell = new BashShell({
   files: {
     "/home/user/README.md": "# My Project\n\nHello, world!\n",
-    "/home/user/src/main.zig": 'const std = @import("std");\n',
+    "/home/user/src/main.rs": 'fn main() {\n    println!("Hello from Rust!");\n}\n',
     "/home/user/data/config.json": '{ "key": "value" }\n',
   },
 });

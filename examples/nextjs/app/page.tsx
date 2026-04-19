@@ -27,11 +27,11 @@ const THEMES: Theme[] = [
 
 const INITIAL_FILES: Record<string, string> = {
   "/home/user/README.md":
-    "# wterm\n\nA terminal emulator for the web.\nRenders to the DOM — native text selection, copy/paste, and accessibility come for free.\nThe core is written in Zig and compiled to WASM.\n\nUses just-bash for shell execution.\n",
+    "# wterm\n\nA terminal emulator for the web.\nRenders to the DOM — native text selection, copy/paste, and accessibility come for free.\nThe core is written in Rust and compiled to WASM.\n\nUses just-bash for shell execution.\n",
   "/home/user/package.json":
     '{\n  "name": "wterm",\n  "version": "0.1.0",\n  "description": "Terminal emulator for the web"\n}\n',
-  "/home/user/src/main.zig":
-    'const std = @import("std");\n\npub fn main() void {\n    std.debug.print("Hello from Zig!\\n", .{});\n}\n',
+  "/home/user/src/main.rs":
+    'fn main() {\n    println!(\"Hello from Rust!\");\n}\n',
   "/home/user/examples/hello.sh":
     '#!/bin/bash\necho "Hello from wterm!"\necho "Date: $(date)"\necho "Shell: $SHELL"\n',
 };

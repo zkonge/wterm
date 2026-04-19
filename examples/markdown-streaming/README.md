@@ -8,7 +8,7 @@ From the monorepo root:
 
 ```bash
 pnpm install
-zig build
+pnpm build:wasm
 ```
 
 Copy the env file and add your API key:

@@ -8,7 +8,7 @@ From the monorepo root:
 
 ```bash
 pnpm install
-zig build
+pnpm build:wasm
 pnpm --filter nextjs dev
 ```
 
@@ -19,7 +19,7 @@ Opens at `nextjs-example.wterm.localhost` via [portless](https://github.com/verc
 - `@wterm/react` renders the terminal with `<Terminal>` and `useTerminal`
 - `@wterm/just-bash` provides a Bash shell that runs entirely in the browser
 - Theme selector switches between Default, Solarized Dark, Monokai, and Light
-- Virtual files (`README.md`, `package.json`, `main.zig`, `hello.sh`) are preloaded into the shell
+- Virtual files (`README.md`, `package.json`, `main.rs`, `hello.sh`) are preloaded into the shell
 
 ## Key Files
 

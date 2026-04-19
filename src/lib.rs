@@ -213,3 +213,144 @@ pub extern "C" fn getCellSize() -> u32 {
 pub extern "C" fn getMaxCols() -> u32 {
     MAX_COLS as u32
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Mutex;
+
+    static TEST_LOCK: Mutex<()> = Mutex::new(());
+
+    fn with_terminal<T>(cols: u32, rows: u32, f: impl FnOnce(&mut Terminal) -> T) -> T {
+        let _guard = TEST_LOCK.lock().unwrap();
+        init(cols, rows);
+        f(terminal_mut())
+    }
+
+    #[test]
+    fn basic_print() {
+        with_terminal(80, 24, |terminal| {
+            terminal.write(b"Hello");
+            let h = terminal.grid.get_cell(0, 0);
+            let e = terminal.grid.get_cell(0, 1);
+            assert_eq!('H' as u32, h.char);
+            assert_eq!('e' as u32, e.char);
+            assert_eq!(5, terminal.cursor_col);
+        });
+    }
+
+    #[test]
+    fn linefeed_and_carriage_return() {
+        with_terminal(80, 24, |terminal| {
+            terminal.write(b"AB\r\nCD");
+            assert_eq!('A' as u32, terminal.grid.get_cell(0, 0).char);
+            assert_eq!('C' as u32, terminal.grid.get_cell(1, 0).char);
+            assert_eq!(1, terminal.cursor_row);
+            assert_eq!(2, terminal.cursor_col);
+        });
+    }
+
+    #[test]
+    fn cursor_movement_csi() {
+        with_terminal(80, 24, |terminal| {
+            terminal.write(b"\x1b[5;10H");
+            assert_eq!(4, terminal.cursor_row);
+            assert_eq!(9, terminal.cursor_col);
+        });
+    }
+
+    #[test]
+    fn sgr_colors() {
+        with_terminal(80, 24, |terminal| {
+            terminal.write(b"\x1b[31mR\x1b[0mN");
+            let red = terminal.grid.get_cell(0, 0);
+            let normal = terminal.grid.get_cell(0, 1);
+            assert_eq!(1, red.fg);
+            assert_eq!(cell::DEFAULT_COLOR, normal.fg);
+        });
+    }
+
+    #[test]
+    fn erase_in_display() {
+        with_terminal(80, 24, |terminal| {
+            terminal.write(b"ABCDE\x1b[1;3H\x1b[J");
+            assert_eq!('A' as u32, terminal.grid.get_cell(0, 0).char);
+            assert_eq!('B' as u32, terminal.grid.get_cell(0, 1).char);
+            assert_eq!(' ' as u32, terminal.grid.get_cell(0, 2).char);
+        });
+    }
+
+    #[test]
+    fn scroll_on_linefeed_at_bottom() {
+        with_terminal(80, 3, |terminal| {
+            terminal.write(b"L1\r\nL2\r\nL3\r\nL4");
+            assert_eq!('L' as u32, terminal.grid.get_cell(0, 0).char);
+            assert_eq!('2' as u32, terminal.grid.get_cell(0, 1).char);
+        });
+    }
+
+    #[test]
+    fn wrap_pending() {
+        with_terminal(5, 3, |terminal| {
+            terminal.write(b"12345");
+            assert!(terminal.wrap_pending);
+            assert_eq!(0, terminal.cursor_row);
+            terminal.write(b"6");
+            assert_eq!(1, terminal.cursor_row);
+            assert_eq!(1, terminal.cursor_col);
+        });
+    }
+
+    #[test]
+    fn alternate_screen_buffer() {
+        with_terminal(80, 24, |terminal| {
+            terminal.write(b"main screen");
+            assert_eq!('m' as u32, terminal.grid.get_cell(0, 0).char);
+            terminal.write(b"\x1b[?1049h");
+            assert!(terminal.using_alt_screen);
+            assert_eq!(' ' as u32, terminal.grid.get_cell(0, 0).char);
+            terminal.write(b"alt screen");
+            terminal.write(b"\x1b[?1049l");
+            assert!(!terminal.using_alt_screen);
+            assert_eq!('m' as u32, terminal.grid.get_cell(0, 0).char);
+        });
+    }
+
+    #[test]
+    fn erase_inherits_current_background_color() {
+        with_terminal(80, 24, |terminal| {
+            terminal.write(b"\x1b[41m");
+            terminal.write(b"\x1b[2K");
+            let cell = terminal.grid.get_cell(0, 0);
+            assert_eq!(1, cell.bg);
+            assert_eq!(' ' as u32, cell.char);
+            terminal.write(b"\x1b[2J");
+            let cell2 = terminal.grid.get_cell(5, 10);
+            assert_eq!(1, cell2.bg);
+            terminal.write(b"\x1b[0m\x1b[2K");
+            let cell3 = terminal.grid.get_cell(0, 0);
+            assert_eq!(cell::DEFAULT_COLOR, cell3.bg);
+        });
+    }
+
+    #[test]
+    fn scroll_fills_new_lines_with_current_background() {
+        with_terminal(80, 3, |terminal| {
+            terminal.write(b"\x1b[42m");
+            terminal.write(b"L1\r\nL2\r\nL3\r\nL4");
+            let blank = terminal.grid.get_cell(2, 79);
+            assert_eq!(2, blank.bg);
+        });
+    }
+
+    #[test]
+    fn scrollback() {
+        with_terminal(80, 3, |terminal| {
+            terminal.write(b"L1\r\nL2\r\nL3\r\nL4\r\nL5");
+            assert_eq!(2, terminal.scrollback.count);
+            let line0 = terminal.scrollback.get_line(0).unwrap();
+            assert_eq!('L' as u32, line0.cells[0].char);
+            assert_eq!('2' as u32, line0.cells[1].char);
+        });
+    }
+}

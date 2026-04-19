@@ -53,10 +53,11 @@ cp node_modules/@wterm/core/wasm/wterm.wasm public/wterm.wasm
 
 ## Building the WASM Binary
 
-Requires [Zig](https://ziglang.org/) 0.16.0
+Requires [Rust](https://www.rust-lang.org/tools/install) stable and the `wasm32-unknown-unknown` target
 
 ```bash
-zig build -Doptimize=ReleaseSmall
+rustup target add wasm32-unknown-unknown
+pnpm build:wasm
 ```
 
-The compiled binary is output to `web/wterm.wasm`.
+The compiled binary is written to `packages/@wterm/core/wasm/wterm.wasm` and copied to `web/wterm.wasm` for local demos.

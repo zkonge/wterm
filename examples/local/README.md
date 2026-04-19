@@ -8,7 +8,7 @@ From the monorepo root:
 
 ```bash
 pnpm install
-zig build
+pnpm build:wasm
 pnpm --filter local dev
 ```
 

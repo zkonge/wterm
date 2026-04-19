@@ -8,7 +8,7 @@ import "@wterm/react/css";
 
 const INITIAL_FILES: Record<string, string> = {
   "/home/user/README.md":
-    "# wterm\n\nA terminal emulator for the web.\nRenders to the DOM — native text selection, copy/paste, and accessibility come for free.\nThe core is written in Zig and compiled to WASM.\n",
+    "# wterm\n\nA terminal emulator for the web.\nRenders to the DOM — native text selection, copy/paste, and accessibility come for free.\nThe core is written in Rust and compiled to WASM.\n",
   "/home/user/package.json":
     '{\n  "name": "wterm",\n  "version": "0.1.0",\n  "description": "Terminal emulator for the web"\n}\n',
 };

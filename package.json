@@ -9,6 +9,7 @@
   },
   "scripts": {
     "build": "turbo run build",
+    "build:wasm": "cargo build --target wasm32-unknown-unknown --release && cp target/wasm32-unknown-unknown/release/wterm.wasm packages/@wterm/core/wasm/wterm.wasm && cp target/wasm32-unknown-unknown/release/wterm.wasm web/wterm.wasm && node packages/@wterm/core/scripts/inline-wasm.js",
     "predev": "command -v portless >/dev/null 2>&1 || (echo '\\nportless is required but not installed. Run: npm i -g portless\\nSee: https://github.com/vercel-labs/portless\\n' && exit 1)",
     "dev": "turbo run dev --concurrency 50",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx}\" --ignore-path .gitignore",
@@ -17,6 +18,7 @@
     "publish-packages": "pnpm build && pnpm --filter './packages/@wterm/*' publish --no-git-checks",
     "sync-versions": "node scripts/sync-versions.mjs",
     "test": "turbo run test",
+    "test:wasm": "cargo test",
     "test:e2e": "playwright test --config e2e/playwright.config.ts",
     "test:e2e:ui": "playwright test --config e2e/playwright.config.ts --ui",
     "type-check": "turbo run type-check"

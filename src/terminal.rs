@@ -1,5 +1,5 @@
 use crate::cell::{
-    self, Cell, DEFAULT_COLOR, FLAG_BLINK, FLAG_BOLD, FLAG_DIM, FLAG_INVISIBLE, FLAG_ITALIC,
+    Cell, DEFAULT_COLOR, FLAG_BLINK, FLAG_BOLD, FLAG_DIM, FLAG_INVISIBLE, FLAG_ITALIC,
     FLAG_REVERSE, FLAG_STRIKETHROUGH, FLAG_UNDERLINE,
 };
 use crate::grid::{Grid, MAX_COLS, MAX_ROWS};
@@ -7,6 +7,13 @@ use crate::parser::{Action, Parser};
 use crate::scrollback::Scrollback;
 
 pub const DEBUG_LOG_MAX: usize = 32;
+const EMPTY_DEBUG_LOG_ENTRY: DebugLogEntry = DebugLogEntry {
+    final_byte: 0,
+    private_marker: 0,
+    param_count: 0,
+    _pad: 0,
+    params: [0; 4],
+};
 
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
@@ -102,7 +109,7 @@ impl Terminal {
             title_changed: false,
             response_buf: [0; 64],
             response_len: 0,
-            debug_log: [DebugLogEntry::default(); DEBUG_LOG_MAX],
+            debug_log: [EMPTY_DEBUG_LOG_ENTRY; DEBUG_LOG_MAX],
             debug_log_idx: 0,
             debug_log_count: 0,
             tab_stops: init_tab_stops(),
@@ -165,7 +172,7 @@ impl Terminal {
         self.title_len = 0;
         self.title_changed = false;
         self.response_len = 0;
-        self.debug_log = [DebugLogEntry::default(); DEBUG_LOG_MAX];
+        self.debug_log = [EMPTY_DEBUG_LOG_ENTRY; DEBUG_LOG_MAX];
         self.debug_log_idx = 0;
         self.debug_log_count = 0;
         self.tab_stops = init_tab_stops();
@@ -538,11 +545,15 @@ impl Terminal {
             if save_cursor {
                 self.save_cursor_to_alt();
             }
-            self.alt_grid = self.grid.clone();
+            unsafe {
+                core::ptr::copy_nonoverlapping(&self.grid, &mut self.alt_grid, 1);
+            }
             self.grid.reset(self.cols, self.rows);
             self.using_alt_screen = true;
         } else {
-            self.grid = self.alt_grid.clone();
+            unsafe {
+                core::ptr::copy_nonoverlapping(&self.alt_grid, &mut self.grid, 1);
+            }
             self.using_alt_screen = false;
             if save_cursor {
                 self.restore_cursor_from_alt();
@@ -989,136 +1000,4 @@ fn rgb_to_256(r: u8, g: u8, b: u8) -> u16 {
     let gi = ((g as u32 * 5 + 127) / 255) as u16;
     let bi = ((b as u32 * 5 + 127) / 255) as u16;
     16 + ri * 36 + gi * 6 + bi
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn basic_print() {
-        let mut terminal = Terminal::new();
-        terminal.reset(80, 24);
-        terminal.write(b"Hello");
-        let h = terminal.grid.get_cell(0, 0);
-        let e = terminal.grid.get_cell(0, 1);
-        assert_eq!('H' as u32, h.char);
-        assert_eq!('e' as u32, e.char);
-        assert_eq!(5, terminal.cursor_col);
-    }
-
-    #[test]
-    fn linefeed_and_carriage_return() {
-        let mut terminal = Terminal::new();
-        terminal.reset(80, 24);
-        terminal.write(b"AB\r\nCD");
-        assert_eq!('A' as u32, terminal.grid.get_cell(0, 0).char);
-        assert_eq!('C' as u32, terminal.grid.get_cell(1, 0).char);
-        assert_eq!(1, terminal.cursor_row);
-        assert_eq!(2, terminal.cursor_col);
-    }
-
-    #[test]
-    fn cursor_movement_csi() {
-        let mut terminal = Terminal::new();
-        terminal.reset(80, 24);
-        terminal.write(b"\x1b[5;10H");
-        assert_eq!(4, terminal.cursor_row);
-        assert_eq!(9, terminal.cursor_col);
-    }
-
-    #[test]
-    fn sgr_colors() {
-        let mut terminal = Terminal::new();
-        terminal.reset(80, 24);
-        terminal.write(b"\x1b[31mR\x1b[0mN");
-        let red = terminal.grid.get_cell(0, 0);
-        let normal = terminal.grid.get_cell(0, 1);
-        assert_eq!(1, red.fg);
-        assert_eq!(cell::DEFAULT_COLOR, normal.fg);
-    }
-
-    #[test]
-    fn erase_in_display() {
-        let mut terminal = Terminal::new();
-        terminal.reset(80, 24);
-        terminal.write(b"ABCDE\x1b[1;3H\x1b[J");
-        assert_eq!('A' as u32, terminal.grid.get_cell(0, 0).char);
-        assert_eq!('B' as u32, terminal.grid.get_cell(0, 1).char);
-        assert_eq!(' ' as u32, terminal.grid.get_cell(0, 2).char);
-    }
-
-    #[test]
-    fn scroll_on_linefeed_at_bottom() {
-        let mut terminal = Terminal::new();
-        terminal.reset(80, 3);
-        terminal.write(b"L1\r\nL2\r\nL3\r\nL4");
-        assert_eq!('L' as u32, terminal.grid.get_cell(0, 0).char);
-        assert_eq!('2' as u32, terminal.grid.get_cell(0, 1).char);
-    }
-
-    #[test]
-    fn wrap_pending() {
-        let mut terminal = Terminal::new();
-        terminal.reset(5, 3);
-        terminal.write(b"12345");
-        assert!(terminal.wrap_pending);
-        assert_eq!(0, terminal.cursor_row);
-        terminal.write(b"6");
-        assert_eq!(1, terminal.cursor_row);
-        assert_eq!(1, terminal.cursor_col);
-    }
-
-    #[test]
-    fn alternate_screen_buffer() {
-        let mut terminal = Terminal::new();
-        terminal.reset(80, 24);
-        terminal.write(b"main screen");
-        assert_eq!('m' as u32, terminal.grid.get_cell(0, 0).char);
-        terminal.write(b"\x1b[?1049h");
-        assert!(terminal.using_alt_screen);
-        assert_eq!(' ' as u32, terminal.grid.get_cell(0, 0).char);
-        terminal.write(b"alt screen");
-        terminal.write(b"\x1b[?1049l");
-        assert!(!terminal.using_alt_screen);
-        assert_eq!('m' as u32, terminal.grid.get_cell(0, 0).char);
-    }
-
-    #[test]
-    fn erase_inherits_current_background_color() {
-        let mut terminal = Terminal::new();
-        terminal.reset(80, 24);
-        terminal.write(b"\x1b[41m");
-        terminal.write(b"\x1b[2K");
-        let cell = terminal.grid.get_cell(0, 0);
-        assert_eq!(1, cell.bg);
-        assert_eq!(' ' as u32, cell.char);
-        terminal.write(b"\x1b[2J");
-        let cell2 = terminal.grid.get_cell(5, 10);
-        assert_eq!(1, cell2.bg);
-        terminal.write(b"\x1b[0m\x1b[2K");
-        let cell3 = terminal.grid.get_cell(0, 0);
-        assert_eq!(cell::DEFAULT_COLOR, cell3.bg);
-    }
-
-    #[test]
-    fn scroll_fills_new_lines_with_current_background() {
-        let mut terminal = Terminal::new();
-        terminal.reset(80, 3);
-        terminal.write(b"\x1b[42m");
-        terminal.write(b"L1\r\nL2\r\nL3\r\nL4");
-        let blank = terminal.grid.get_cell(2, 79);
-        assert_eq!(2, blank.bg);
-    }
-
-    #[test]
-    fn scrollback() {
-        let mut terminal = Terminal::new();
-        terminal.reset(80, 3);
-        terminal.write(b"L1\r\nL2\r\nL3\r\nL4\r\nL5");
-        assert_eq!(2, terminal.scrollback.count);
-        let line0 = terminal.scrollback.get_line(0).unwrap();
-        assert_eq!('L' as u32, line0.cells[0].char);
-        assert_eq!('2' as u32, line0.cells[1].char);
-    }
 }

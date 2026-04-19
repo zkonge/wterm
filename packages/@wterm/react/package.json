@@ -48,7 +48,7 @@
     "terminal",
     "emulator",
     "wasm",
-    "zig",
+    "rust",
     "react",
     "xterm"
   ],

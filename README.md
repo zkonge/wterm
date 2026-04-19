@@ -2,7 +2,7 @@
 
 A terminal emulator for the web.
 
-wterm ("dub-term") renders to the DOM — native text selection, copy/paste, find, and accessibility come for free. The core is written in Zig and compiled to WASM for near-native performance.
+wterm ("dub-term") renders to the DOM — native text selection, copy/paste, find, and accessibility come for free. The core is written in Rust and compiled to WASM for near-native performance.
 
 ## Packages
 
@@ -16,7 +16,7 @@ wterm ("dub-term") renders to the DOM — native text selection, copy/paste, fin
 
 ## Features
 
-- **Zig + WASM core** — VT100/VT220/xterm escape sequence parser compiled to a ~12 KB `.wasm` binary (release build)
+- **Rust + WASM core** — VT100/VT220/xterm escape sequence parser compiled to a ~12 KB `.wasm` binary (release build)
 - **DOM rendering** — native text selection, clipboard, browser find, and screen reader support
 - **Dirty-row tracking** — only touched rows are re-rendered each frame via `requestAnimationFrame`
 - **Themes** — CSS custom properties with built-in Default, Solarized Dark, Monokai, and Light themes
@@ -30,7 +30,7 @@ wterm ("dub-term") renders to the DOM — native text selection, copy/paste, fin
 
 ### Prerequisites
 
-- [Zig](https://ziglang.org/) 0.16.0+
+- [Rust](https://www.rust-lang.org/tools/install) stable + the `wasm32-unknown-unknown` target
 - [Node.js](https://nodejs.org/) 20+
 - [pnpm](https://pnpm.io/) 10+
 - [portless](https://github.com/vercel-labs/portless) — `npm i -g portless`
@@ -44,13 +44,8 @@ pnpm install
 ### Build the WASM binary
 
 ```bash
-zig build
-```
-
-For a release build:
-
-```bash
-zig build -Doptimize=ReleaseSmall
+rustup target add wasm32-unknown-unknown
+pnpm build:wasm
 ```
 
 ### Build all packages
@@ -76,10 +71,10 @@ cp web/wterm.wasm examples/nextjs/public/
 pnpm --filter nextjs dev
 ```
 
-### Run Zig tests
+### Run Rust tests
 
 ```bash
-zig build test
+pnpm test:wasm
 ```
 
 ## License

@@ -1,5 +1,4 @@
-zig-out/
-.zig-cache/
+target/
 *.wasm
 !packages/@wterm/core/wasm/wterm.wasm
 .DS_Store

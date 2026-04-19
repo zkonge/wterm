@@ -21,7 +21,7 @@ npm install @wterm/core
 
 ### `WasmBridge`
 
-Low-level interface to the Zig/WASM terminal state machine.
+Low-level interface to the Rust/WASM terminal state machine.
 
 ```ts
 import { WasmBridge } from "@wterm/core";

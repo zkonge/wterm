@@ -32,7 +32,7 @@
     "terminal",
     "emulator",
     "wasm",
-    "zig",
+    "rust",
     "xterm"
   ],
   "license": "Apache-2.0",

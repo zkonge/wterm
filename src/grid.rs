@@ -27,6 +27,7 @@ impl Grid {
         self.clear();
     }
 
+    #[cfg_attr(not(test), allow(dead_code))]
     pub fn get_cell(&self, row: u16, col: u16) -> Cell {
         if row >= self.rows || col >= self.cols {
             return Cell::BLANK;
@@ -69,6 +70,7 @@ impl Grid {
         self.dirty[row_idx] = 1;
     }
 
+    #[cfg_attr(not(test), allow(dead_code))]
     pub fn clear_range(&mut self, row: u16, start_col: u16, end_col: u16) {
         self.clear_range_as(row, start_col, end_col, Cell::BLANK);
     }
