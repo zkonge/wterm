@@ -8,6 +8,7 @@
     "url": "https://github.com/vercel-labs/wterm"
   },
   "scripts": {
+    "bench:wasm": "node scripts/benchmark-wasm.mjs",
     "build": "turbo run build",
     "build:wasm": "cargo build --target wasm32-unknown-unknown --release && cp target/wasm32-unknown-unknown/release/wterm.wasm packages/@wterm/core/wasm/wterm.wasm && cp target/wasm32-unknown-unknown/release/wterm.wasm web/wterm.wasm && node packages/@wterm/core/scripts/inline-wasm.js",
     "predev": "command -v portless >/dev/null 2>&1 || (echo '\\nportless is required but not installed. Run: npm i -g portless\\nSee: https://github.com/vercel-labs/portless\\n' && exit 1)",
