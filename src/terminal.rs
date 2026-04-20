@@ -116,6 +116,7 @@ impl Terminal {
         }
     }
 
+    #[inline]
     fn blank_cell(&self) -> Cell {
         Cell::blank_with_bg(self.current_bg)
     }
@@ -213,11 +214,7 @@ impl Terminal {
         self.grid.rows = rows;
 
         if rows > old_rows {
-            let mut row = old_rows;
-            while row < rows {
-                self.grid.clear_row(row);
-                row += 1;
-            }
+            self.grid.clear_rows_as(old_rows, rows, Cell::BLANK);
         }
 
         if cols > old_cols {
@@ -649,27 +646,16 @@ impl Terminal {
             0 => {
                 self.grid
                     .clear_range_as(self.cursor_row, self.cursor_col, self.cols, blank);
-                let mut row = self.cursor_row + 1;
-                while row < self.rows {
-                    self.grid.clear_row_as(row, blank);
-                    row += 1;
-                }
+                self.grid
+                    .clear_rows_as(self.cursor_row + 1, self.rows, blank);
             }
             1 => {
-                let mut row = 0u16;
-                while row < self.cursor_row {
-                    self.grid.clear_row_as(row, blank);
-                    row += 1;
-                }
+                self.grid.clear_rows_as(0, self.cursor_row, blank);
                 self.grid
                     .clear_range_as(self.cursor_row, 0, self.cursor_col + 1, blank);
             }
             2 | 3 => {
-                let mut row = 0u16;
-                while row < self.rows {
-                    self.grid.clear_row_as(row, blank);
-                    row += 1;
-                }
+                self.grid.clear_rows_as(0, self.rows, blank);
                 if mode == 3 {
                     self.scrollback.reset();
                 }

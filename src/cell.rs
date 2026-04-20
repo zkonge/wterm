@@ -33,6 +33,7 @@ impl Cell {
         _pad3: 0,
     };
 
+    #[inline]
     pub const fn blank_with_bg(bg: u16) -> Self {
         Self {
             char: ' ' as u32,

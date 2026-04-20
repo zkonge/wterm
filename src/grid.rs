@@ -27,7 +27,7 @@ impl Grid {
         self.clear();
     }
 
-    #[cfg_attr(not(test), allow(dead_code))]
+    #[cfg(test)]
     pub fn get_cell(&self, row: u16, col: u16) -> Cell {
         if row >= self.rows || col >= self.cols {
             return Cell::BLANK;
@@ -49,10 +49,6 @@ impl Grid {
             row[..cols].fill(Cell::BLANK);
         }
         self.dirty[..self.rows as usize].fill(1);
-    }
-
-    pub fn clear_row(&mut self, row: u16) {
-        self.clear_row_as(row, Cell::BLANK);
     }
 
     pub fn clear_row_as(&mut self, row: u16, blank: Cell) {
@@ -77,6 +73,20 @@ impl Grid {
         let row_idx = row as usize;
         self.cells[row_idx][start_col as usize..end].fill(blank);
         self.dirty[row_idx] = 1;
+    }
+
+    pub fn clear_rows_as(&mut self, start_row: u16, end_row: u16, blank: Cell) {
+        let start = start_row.min(self.rows) as usize;
+        let end = end_row.min(self.rows) as usize;
+        if start >= end {
+            return;
+        }
+
+        let cols = self.cols as usize;
+        for row in &mut self.cells[start..end] {
+            row[..cols].fill(blank);
+        }
+        self.dirty[start..end].fill(1);
     }
 
     pub fn scroll_up(&mut self, top: u16, bottom: u16, count: u16, blank: Cell) {

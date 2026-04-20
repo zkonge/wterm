@@ -302,6 +302,7 @@ impl Parser {
         }
     }
 
+    #[inline]
     pub fn get_param(&self, idx: u8, default: u16) -> u16 {
         if idx >= self.param_count {
             return default;
