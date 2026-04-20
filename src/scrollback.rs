@@ -41,12 +41,8 @@ impl Scrollback {
     pub fn push(&mut self, row: &[Cell], len: u16) {
         let write_idx = self.write_pos as usize;
         let line = &mut self.lines[write_idx];
-        let mut i = 0usize;
         let limit = len as usize;
-        while i < limit {
-            line.cells[i] = row[i];
-            i += 1;
-        }
+        line.cells[..limit].copy_from_slice(&row[..limit]);
         line.len = len;
 
         self.write_pos = (self.write_pos + 1) % MAX_SCROLLBACK_LINES as u32;

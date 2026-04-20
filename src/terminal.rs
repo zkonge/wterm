@@ -128,12 +128,8 @@ impl Terminal {
             _pad: 0,
             params: [0; 4],
         };
-        let copy_count = self.parser.param_count.min(4);
-        let mut i = 0usize;
-        while i < copy_count as usize {
-            entry.params[i] = self.parser.params[i];
-            i += 1;
-        }
+        let copy_count = self.parser.param_count.min(4) as usize;
+        entry.params[..copy_count].copy_from_slice(&self.parser.params[..copy_count]);
         self.debug_log[self.debug_log_idx as usize] = entry;
         self.debug_log_idx = (self.debug_log_idx + 1) % DEBUG_LOG_MAX as u8;
         self.debug_log_count = self.debug_log_count.saturating_add(1);
@@ -196,14 +192,8 @@ impl Terminal {
 
         if cols < old_cols {
             let preserve_rows = rows.min(old_rows);
-            let mut row = 0u16;
-            while row < preserve_rows {
-                let mut col = cols;
-                while col < old_cols {
-                    self.grid.cells[row as usize][col as usize] = Cell::BLANK;
-                    col += 1;
-                }
-                row += 1;
+            for row in &mut self.grid.cells[..preserve_rows as usize] {
+                row[cols as usize..old_cols as usize].fill(Cell::BLANK);
             }
         }
 
@@ -232,15 +222,12 @@ impl Terminal {
 
         if cols > old_cols {
             let preserve_rows = old_rows.min(rows);
-            let mut row = 0u16;
-            while row < preserve_rows {
-                let mut col = old_cols;
-                while col < cols {
-                    self.grid.cells[row as usize][col as usize] = Cell::BLANK;
-                    col += 1;
-                }
-                self.grid.dirty[row as usize] = 1;
-                row += 1;
+            for (dirty, row) in self.grid.dirty[..preserve_rows as usize]
+                .iter_mut()
+                .zip(&mut self.grid.cells[..preserve_rows as usize])
+            {
+                row[old_cols as usize..cols as usize].fill(Cell::BLANK);
+                *dirty = 1;
             }
         }
 
@@ -254,11 +241,7 @@ impl Terminal {
             self.cursor_row = rows - 1;
         }
 
-        let mut row = 0u16;
-        while row < rows {
-            self.grid.dirty[row as usize] = 1;
-            row += 1;
-        }
+        self.grid.dirty[..rows as usize].fill(1);
     }
 
     fn process_byte(&mut self, byte: u8) {
@@ -342,8 +325,10 @@ impl Terminal {
     fn do_linefeed(&mut self) {
         if self.cursor_row + 1 >= self.scroll_bottom {
             if !self.using_alt_screen && self.scroll_top == 0 {
-                self.scrollback
-                    .push(&self.grid.cells[self.scroll_top as usize][..self.cols as usize], self.cols);
+                self.scrollback.push(
+                    &self.grid.cells[self.scroll_top as usize][..self.cols as usize],
+                    self.cols,
+                );
             }
             self.grid
                 .scroll_up(self.scroll_top, self.scroll_bottom, 1, self.blank_cell());
@@ -360,7 +345,11 @@ impl Terminal {
     fn handle_esc(&mut self) {
         let byte = self.parser.execute_byte;
         let has_inter = self.parser.intermediate_count > 0;
-        let inter0 = if has_inter { self.parser.intermediates[0] } else { 0 };
+        let inter0 = if has_inter {
+            self.parser.intermediates[0]
+        } else {
+            0
+        };
 
         if has_inter && inter0 == b'#' && byte == b'8' {
             self.decaln();
@@ -383,21 +372,16 @@ impl Terminal {
     }
 
     fn decaln(&mut self) {
-        let mut row = 0u16;
-        while row < self.rows {
-            let mut col = 0u16;
-            while col < self.cols {
-                self.grid.set_cell(
-                    row,
-                    col,
-                    Cell {
-                        char: b'E' as u32,
-                        ..Cell::BLANK
-                    },
-                );
-                col += 1;
-            }
-            row += 1;
+        let cell = Cell {
+            char: b'E' as u32,
+            ..Cell::BLANK
+        };
+        for (dirty, row) in self.grid.dirty[..self.rows as usize]
+            .iter_mut()
+            .zip(&mut self.grid.cells[..self.rows as usize])
+        {
+            row[..self.cols as usize].fill(cell);
+            *dirty = 1;
         }
         self.cursor_row = 0;
         self.cursor_col = 0;
@@ -486,7 +470,10 @@ impl Terminal {
             b'g' => self.clear_tab_stop(self.parser.get_param(0, 0)),
             b'm' => self.handle_sgr(),
             b'n' => self.handle_device_status(),
-            b'r' => self.set_scroll_region(self.parser.get_param(0, 1), self.parser.get_param(1, self.rows)),
+            b'r' => self.set_scroll_region(
+                self.parser.get_param(0, 1),
+                self.parser.get_param(1, self.rows),
+            ),
             b's' => self.save_cursor(),
             b't' => {}
             b'u' => self.restore_cursor(),
@@ -545,24 +532,16 @@ impl Terminal {
             if save_cursor {
                 self.save_cursor_to_alt();
             }
-            unsafe {
-                core::ptr::copy_nonoverlapping(&self.grid, &mut self.alt_grid, 1);
-            }
+            core::mem::swap(&mut self.grid, &mut self.alt_grid);
             self.grid.reset(self.cols, self.rows);
             self.using_alt_screen = true;
         } else {
-            unsafe {
-                core::ptr::copy_nonoverlapping(&self.alt_grid, &mut self.grid, 1);
-            }
+            core::mem::swap(&mut self.grid, &mut self.alt_grid);
             self.using_alt_screen = false;
             if save_cursor {
                 self.restore_cursor_from_alt();
             }
-            let mut row = 0u16;
-            while row < self.rows {
-                self.grid.dirty[row as usize] = 1;
-                row += 1;
-            }
+            self.grid.dirty[..self.rows as usize].fill(1);
         }
         self.scroll_top = 0;
         self.scroll_bottom = self.rows;
@@ -748,15 +727,15 @@ impl Terminal {
         let count = if n == 0 { 1 } else { n } as usize;
         let row = self.cursor_row as usize;
         let blank = self.blank_cell();
-        let mut col = self.cursor_col as usize;
-        while col + count < self.cols as usize {
-            self.grid.cells[row][col] = self.grid.cells[row][col + count];
-            col += 1;
+        let start = self.cursor_col as usize;
+        let cols = self.cols as usize;
+        let row_slice = &mut self.grid.cells[row][..cols];
+        let shift_from = (start + count).min(cols);
+        if shift_from < cols {
+            row_slice.copy_within(shift_from..cols, start);
         }
-        while col < self.cols as usize {
-            self.grid.cells[row][col] = blank;
-            col += 1;
-        }
+        let copied = cols - shift_from;
+        row_slice[start + copied..cols].fill(blank);
         self.grid.dirty[row] = 1;
     }
 
@@ -771,20 +750,10 @@ impl Terminal {
                 .clear_range_as(self.cursor_row, self.cursor_col, self.cols, blank);
             return;
         }
-        let mut col = cols - 1;
-        while col >= start + count {
-            self.grid.cells[row][col] = self.grid.cells[row][col - count];
-            if col == 0 {
-                break;
-            }
-            col -= 1;
-        }
+        let row_slice = &mut self.grid.cells[row][..cols];
+        row_slice.copy_within(start..cols - count, start + count);
         let end = (start + count).min(cols);
-        let mut col = start;
-        while col < end {
-            self.grid.cells[row][col] = blank;
-            col += 1;
-        }
+        row_slice[start..end].fill(blank);
         self.grid.dirty[row] = 1;
     }
 
@@ -800,8 +769,12 @@ impl Terminal {
                 i += 1;
             }
         }
-        self.grid
-            .scroll_up(self.scroll_top, self.scroll_bottom, count, self.blank_cell());
+        self.grid.scroll_up(
+            self.scroll_top,
+            self.scroll_bottom,
+            count,
+            self.blank_cell(),
+        );
     }
 
     fn scroll_down_n(&mut self, n: u16) {

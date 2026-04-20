@@ -103,12 +103,8 @@ impl Parser {
         self.params_full = false;
         self.intermediate_count = 0;
         self.csi_private = 0;
-        let mut i = 0usize;
-        while i < MAX_PARAMS {
-            self.params[i] = 0;
-            self.subparam[i] = false;
-            i += 1;
-        }
+        self.params = [0; MAX_PARAMS];
+        self.subparam = [false; MAX_PARAMS];
     }
 
     fn handle_ground(&mut self, byte: u8) -> Action {

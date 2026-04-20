@@ -10,7 +10,7 @@ mod terminal;
 
 use cell::Cell;
 use grid::{MAX_COLS, MAX_ROWS};
-use terminal::{DebugLogEntry, Terminal, DEBUG_LOG_MAX};
+use terminal::{DEBUG_LOG_MAX, DebugLogEntry, Terminal};
 
 const INPUT_BUFFER_SIZE: usize = 8192;
 
@@ -19,7 +19,8 @@ struct Global<T>(UnsafeCell<T>);
 unsafe impl<T> Sync for Global<T> {}
 
 static TERMINAL: Global<Terminal> = Global(UnsafeCell::new(Terminal::new()));
-static INPUT_BUFFER: Global<[u8; INPUT_BUFFER_SIZE]> = Global(UnsafeCell::new([0; INPUT_BUFFER_SIZE]));
+static INPUT_BUFFER: Global<[u8; INPUT_BUFFER_SIZE]> =
+    Global(UnsafeCell::new([0; INPUT_BUFFER_SIZE]));
 static EMPTY_SCROLLBACK_LINE: Global<[u8; MAX_COLS * Cell::BYTE_SIZE]> =
     Global(UnsafeCell::new([0; MAX_COLS * Cell::BYTE_SIZE]));
 
@@ -186,7 +187,11 @@ pub extern "C" fn clearResponse() {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn getDebugLogPtr() -> *const u8 {
-    terminal_mut().debug_log.as_ptr().cast::<DebugLogEntry>().cast::<u8>()
+    terminal_mut()
+        .debug_log
+        .as_ptr()
+        .cast::<DebugLogEntry>()
+        .cast::<u8>()
 }
 
 #[unsafe(no_mangle)]

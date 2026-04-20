@@ -44,12 +44,11 @@ impl Grid {
     }
 
     pub fn clear(&mut self) {
-        let mut row = 0usize;
-        let limit = self.rows as usize;
-        while row < limit {
-            self.clear_row(row as u16);
-            row += 1;
+        let cols = self.cols as usize;
+        for row in &mut self.cells[..self.rows as usize] {
+            row[..cols].fill(Cell::BLANK);
         }
+        self.dirty[..self.rows as usize].fill(1);
     }
 
     pub fn clear_row(&mut self, row: u16) {
@@ -61,12 +60,7 @@ impl Grid {
             return;
         }
         let row_idx = row as usize;
-        let mut col = 0usize;
-        let limit = self.cols as usize;
-        while col < limit {
-            self.cells[row_idx][col] = blank;
-            col += 1;
-        }
+        self.cells[row_idx][..self.cols as usize].fill(blank);
         self.dirty[row_idx] = 1;
     }
 
@@ -80,12 +74,8 @@ impl Grid {
             return;
         }
         let end = end_col.min(self.cols) as usize;
-        let mut col = start_col as usize;
         let row_idx = row as usize;
-        while col < end {
-            self.cells[row_idx][col] = blank;
-            col += 1;
-        }
+        self.cells[row_idx][start_col as usize..end].fill(blank);
         self.dirty[row_idx] = 1;
     }
 
@@ -93,46 +83,35 @@ impl Grid {
         if count == 0 || top >= bottom {
             return;
         }
-        let n = count.min(bottom - top);
-        let mut row = top;
-        while row + n < bottom {
-            self.cells[row as usize] = self.cells[(row + n) as usize];
-            self.dirty[row as usize] = 1;
-            row += 1;
+        let top = top as usize;
+        let bottom = bottom as usize;
+        let n = count.min((bottom - top) as u16) as usize;
+
+        self.cells.copy_within(top + n..bottom, top);
+        self.dirty[top..bottom - n].fill(1);
+        for row in &mut self.cells[bottom - n..bottom] {
+            row[..self.cols as usize].fill(blank);
         }
-        while row < bottom {
-            self.clear_row_as(row, blank);
-            row += 1;
-        }
+        self.dirty[bottom - n..bottom].fill(1);
     }
 
     pub fn scroll_down(&mut self, top: u16, bottom: u16, count: u16, blank: Cell) {
         if count == 0 || top >= bottom {
             return;
         }
-        let n = count.min(bottom - top);
-        let span = bottom - top - n;
-        let mut i = 0u16;
-        while i < span {
-            let dst = bottom - 1 - i;
-            let src = dst - n;
-            self.cells[dst as usize] = self.cells[src as usize];
-            self.dirty[dst as usize] = 1;
-            i += 1;
+        let top = top as usize;
+        let bottom = bottom as usize;
+        let n = count.min((bottom - top) as u16) as usize;
+
+        self.cells.copy_within(top..bottom - n, top + n);
+        self.dirty[top + n..bottom].fill(1);
+        for row in &mut self.cells[top..top + n] {
+            row[..self.cols as usize].fill(blank);
         }
-        let mut row = top;
-        while row < top + n {
-            self.clear_row_as(row, blank);
-            row += 1;
-        }
+        self.dirty[top..top + n].fill(1);
     }
 
     pub fn clear_dirty(&mut self) {
-        let mut row = 0usize;
-        let limit = self.rows as usize;
-        while row < limit {
-            self.dirty[row] = 0;
-            row += 1;
-        }
+        self.dirty[..self.rows as usize].fill(0);
     }
 }
